@@ -1,83 +1,102 @@
+import {useLoaderData, Link} from 'react-router';
 import type {Route} from './+types/collections.all';
-import {useLoaderData} from 'react-router';
-import {getPaginationVariables, Image, Money} from '@shopify/hydrogen';
+import {getPaginationVariables, Analytics} from '@shopify/hydrogen';
 import {PaginatedResourceSection} from '~/components/PaginatedResourceSection';
 import {ProductItem} from '~/components/ProductItem';
-import type {CollectionItemFragment} from 'storefrontapi.generated';
+import type {ProductItemFragment} from 'storefrontapi.generated';
 
 export const meta: Route.MetaFunction = () => {
-  return [{title: `Hydrogen | Products`}];
+  return [{title: `CEMShop | Todo el catálogo`}];
 };
 
 export async function loader(args: Route.LoaderArgs) {
-  // Start fetching non-critical data without blocking time to first byte
   const deferredData = loadDeferredData(args);
-
-  // Await the critical data required to render initial state of the page
   const criticalData = await loadCriticalData(args);
-
   return {...deferredData, ...criticalData};
 }
 
-/**
- * Load data necessary for rendering content above the fold. This is the critical data
- * needed to render the page. If it's unavailable, the whole page should 400 or 500 error.
- */
 async function loadCriticalData({context, request}: Route.LoaderArgs) {
-  const {storefront} = context;
-  const paginationVariables = getPaginationVariables(request, {
-    pageBy: 8,
-  });
+  const paginationVariables = getPaginationVariables(request, {pageBy: 9});
 
   const [{products}] = await Promise.all([
-    storefront.query(CATALOG_QUERY, {
-      variables: {...paginationVariables},
+    context.storefront.query(CATALOG_QUERY, {
+      variables: paginationVariables,
     }),
-    // Add other queries here, so that they are loaded in parallel
   ]);
+
   return {products};
 }
 
-/**
- * Load data for rendering content below the fold. This data is deferred and will be
- * fetched after the initial page load. If it's unavailable, the page should still 200.
- * Make sure to not throw any errors here, as it will cause the page to 500.
- */
 function loadDeferredData({context}: Route.LoaderArgs) {
   return {};
 }
 
-export default function Collection() {
+export default function AllProducts() {
   const {products} = useLoaderData<typeof loader>();
+  const productCount = products.nodes.length;
 
   return (
-    <div className="collection">
-      <h1>Products</h1>
-      <PaginatedResourceSection<CollectionItemFragment>
-        connection={products}
-        resourcesClassName="products-grid"
-      >
-        {({node: product, index}) => (
-          <ProductItem
-            key={product.id}
-            product={product}
-            loading={index < 8 ? 'eager' : undefined}
-          />
-        )}
-      </PaginatedResourceSection>
+    <div>
+      <section className="cs-catalog-hero">
+        <div className="cs-crumbs">
+          <Link to="/">Inicio</Link>
+          <span className="sep">/</span>
+          <Link to="/collections">Colecciones</Link>
+          <span className="sep">/</span>
+          <span className="current">Todo</span>
+        </div>
+
+        <div className="cs-catalog-meta cs-reveal">
+          <div>
+            <h1 className="cs-catalog-title">
+              Todo el <em>catálogo</em>
+            </h1>
+          </div>
+          <div style={{display: 'flex', alignItems: 'center', gap: 12, flexShrink: 0}}>
+            <span style={{fontSize: 13, color: 'var(--text-muted)'}}>
+              {productCount} {productCount === 1 ? 'producto' : 'productos'}
+            </span>
+          </div>
+        </div>
+      </section>
+
+      <section className="cs-section" style={{paddingTop: 28}}>
+        <PaginatedResourceSection<ProductItemFragment>
+          connection={products}
+          resourcesClassName="products-grid"
+        >
+          {({node: product, index}) => (
+            <ProductItem
+              key={product.id}
+              product={product}
+              loading={index < 9 ? 'eager' : undefined}
+            />
+          )}
+        </PaginatedResourceSection>
+      </section>
+
+      <Analytics.CollectionView
+        data={{
+          collection: {
+            id: 'all-products',
+            handle: 'all',
+          },
+        }}
+      />
     </div>
   );
 }
 
-const COLLECTION_ITEM_FRAGMENT = `#graphql
-  fragment MoneyCollectionItem on MoneyV2 {
+const PRODUCT_ITEM_FRAGMENT = `#graphql
+  fragment MoneyProductItem on MoneyV2 {
     amount
     currencyCode
   }
-  fragment CollectionItem on Product {
+  fragment ProductItem on Product {
     id
     handle
     title
+    vendor
     featuredImage {
       id
       altText
@@ -87,17 +106,48 @@ const COLLECTION_ITEM_FRAGMENT = `#graphql
     }
     priceRange {
       minVariantPrice {
-        ...MoneyCollectionItem
+        ...MoneyProductItem
       }
       maxVariantPrice {
-        ...MoneyCollectionItem
+        ...MoneyProductItem
+      }
+    }
+    selectedOrFirstAvailableVariant(
+      selectedOptions: []
+      ignoreUnknownOptions: true
+      caseInsensitiveMatch: true
+    ) {
+      id
+      availableForSale
+      title
+      price {
+        ...MoneyProductItem
+      }
+      compareAtPrice {
+        ...MoneyProductItem
+      }
+      image {
+        id
+        url
+        altText
+        width
+        height
+      }
+      selectedOptions {
+        name
+        value
+      }
+      product {
+        handle
+        title
+        vendor
       }
     }
   }
 ` as const;
 
-// NOTE: https://shopify.dev/docs/api/storefront/latest/objects/product
 const CATALOG_QUERY = `#graphql
+  ${PRODUCT_ITEM_FRAGMENT}
   query Catalog(
     $country: CountryCode
     $language: LanguageCode
@@ -106,17 +156,21 @@ const CATALOG_QUERY = `#graphql
     $startCursor: String
     $endCursor: String
   ) @inContext(country: $country, language: $language) {
-    products(first: $first, last: $last, before: $startCursor, after: $endCursor) {
+    products(
+      first: $first,
+      last: $last,
+      before: $startCursor,
+      after: $endCursor
+    ) {
       nodes {
-        ...CollectionItem
+        ...ProductItem
       }
       pageInfo {
         hasPreviousPage
         hasNextPage
-        startCursor
         endCursor
+        startCursor
       }
     }
   }
-  ${COLLECTION_ITEM_FRAGMENT}
 ` as const;

@@ -5,7 +5,7 @@ import {CartForm} from '@shopify/hydrogen';
 import {CartMain} from '~/components/CartMain';
 
 export const meta: Route.MetaFunction = () => {
-  return [{title: `Hydrogen | Cart`}];
+  return [{title: 'CEMShop | Tu Bolsa'}];
 };
 
 export const headers: HeadersFunction = ({actionHeaders}) => actionHeaders;
@@ -36,25 +36,18 @@ export async function action({request, context}: Route.ActionArgs) {
       break;
     case CartForm.ACTIONS.DiscountCodesUpdate: {
       const formDiscountCode = inputs.discountCode;
-
-      // User inputted discount code
       const discountCodes = (
         formDiscountCode ? [formDiscountCode] : []
       ) as string[];
-
-      // Combine discount codes already applied on cart
       discountCodes.push(...inputs.discountCodes);
-
       result = await cart.updateDiscountCodes(discountCodes);
       break;
     }
     case CartForm.ACTIONS.GiftCardCodesAdd: {
       const formGiftCardCode = inputs.giftCardCode;
-
       const giftCardCodes = (
         formGiftCardCode ? [formGiftCardCode] : []
       ) as string[];
-
       result = await cart.addGiftCardCodes(giftCardCodes);
       break;
     }
@@ -88,9 +81,7 @@ export async function action({request, context}: Route.ActionArgs) {
       cart: cartResult,
       errors,
       warnings,
-      analytics: {
-        cartId,
-      },
+      analytics: {cartId},
     },
     {status, headers},
   );
@@ -105,9 +96,12 @@ export default function Cart() {
   const cart = useLoaderData<typeof loader>();
 
   return (
-    <div className="cart">
-      <h1>Cart</h1>
-      <CartMain layout="page" cart={cart} />
+    <div className="cs-cart-page">
+      <div className="cs-cart-page-header">
+        <span className="cs-eyebrow">Compras</span>
+        <h1>Tu bolsa</h1>
+      </div>
+      <CartMain layout="page" cart={cart ?? null} />
     </div>
   );
 }

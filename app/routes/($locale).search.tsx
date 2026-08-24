@@ -1,4 +1,4 @@
-import {useLoaderData} from 'react-router';
+import {useLoaderData, Link} from 'react-router';
 import type {Route} from './+types/search';
 import {getPaginationVariables, Analytics} from '@shopify/hydrogen';
 import {SearchForm} from '~/components/SearchForm';
@@ -13,8 +13,9 @@ import type {
   PredictiveSearchQuery,
 } from 'storefrontapi.generated';
 
-export const meta: Route.MetaFunction = () => {
-  return [{title: `Hydrogen | Search`}];
+export const meta: Route.MetaFunction = ({data}) => {
+  const term = (data as {term?: string})?.term;
+  return [{title: term ? `Búsqueda: ${term} | CEMShop` : 'Buscar | CEMShop'}];
 };
 
 export async function loader({request, context}: Route.LoaderArgs) {
@@ -33,47 +34,84 @@ export async function loader({request, context}: Route.LoaderArgs) {
   return await searchPromise;
 }
 
-/**
- * Renders the /search route
- */
 export default function SearchPage() {
   const {type, term, result, error} = useLoaderData<typeof loader>();
   if (type === 'predictive') return null;
 
+  const total = result?.total ?? 0;
+
   return (
-    <div className="search">
-      <h1>Search</h1>
-      <SearchForm>
-        {({inputRef}) => (
-          <>
-            <input
-              defaultValue={term}
-              name="q"
-              placeholder="Search…"
-              ref={inputRef}
-              type="search"
-            />
-            &nbsp;
-            <button type="submit">Search</button>
-          </>
-        )}
-      </SearchForm>
-      {error && <p style={{color: 'red'}}>{error}</p>}
-      {!term || !result?.total ? (
-        <SearchResults.Empty />
-      ) : (
-        <SearchResults result={result} term={term}>
-          {({articles, pages, products, term}) => (
-            <div>
-              <SearchResults.Products products={products} term={term} />
-              <SearchResults.Pages pages={pages} term={term} />
-              <SearchResults.Articles articles={articles} term={term} />
+    <div>
+      <section className="cs-catalog-hero">
+        <div className="cs-crumbs">
+          <Link to="/">Inicio</Link>
+          <span className="sep">/</span>
+          <span className="current">Buscar</span>
+        </div>
+
+        <div className="cs-catalog-meta cs-reveal">
+          <div>
+            <h1 className="cs-catalog-title">
+              {term ? (
+                <>Resultados para <em>{term}</em></>
+              ) : (
+                <em>Buscar</em>
+              )}
+            </h1>
+          </div>
+          {total > 0 && (
+            <span style={{fontSize: 13, color: 'var(--text-muted)', flexShrink: 0}}>
+              {total} {total === 1 ? 'resultado' : 'resultados'}
+            </span>
+          )}
+        </div>
+
+        <SearchForm>
+          {({inputRef}) => (
+            <div className="cs-search-form-page">
+              <input
+                defaultValue={term}
+                name="q"
+                placeholder="Buscar productos, colecciones…"
+                ref={inputRef}
+                type="search"
+              />
+              <button type="submit" aria-label="Buscar">
+                <SearchIcon />
+              </button>
             </div>
           )}
-        </SearchResults>
-      )}
+        </SearchForm>
+      </section>
+
+      {error && <p className="cs-search-error">{error}</p>}
+
+      <section className="cs-section cs-reveal" style={{paddingTop: 32}}>
+        {!term || !total ? (
+          <SearchResults.Empty term={term} />
+        ) : (
+          <SearchResults result={result} term={term}>
+            {({articles, pages, products, term}) => (
+              <>
+                <SearchResults.Products products={products} term={term} />
+                <SearchResults.Pages pages={pages} term={term} />
+                <SearchResults.Articles articles={articles} term={term} />
+              </>
+            )}
+          </SearchResults>
+        )}
+      </section>
+
       <Analytics.SearchView data={{searchTerm: term, searchResults: result}} />
     </div>
+  );
+}
+
+function SearchIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" />
+    </svg>
   );
 }
 

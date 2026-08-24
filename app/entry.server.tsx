@@ -14,12 +14,20 @@ export default async function handleRequest(
   reactRouterContext: EntryContext,
   context: HydrogenRouterContextProvider,
 ) {
-  const {nonce, header, NonceProvider} = createContentSecurityPolicy({
+  const {nonce, header: baseHeader, NonceProvider} = createContentSecurityPolicy({
     shop: {
       checkoutDomain: context.env.PUBLIC_CHECKOUT_DOMAIN,
       storeDomain: context.env.PUBLIC_STORE_DOMAIN,
     },
   });
+
+  // Extender CSP para permitir Google Fonts.
+  // Usamos manipulación de string porque el parámetro directives de esta
+  // versión de Hydrogen no acepta arrays directamente.
+  const header = baseHeader
+    .replace(/style-src ([^;]+)/, 'style-src $1 https://fonts.googleapis.com')
+    .replace(/font-src ([^;]+)/, "font-src $1 https://fonts.gstatic.com")
+    + (baseHeader.includes('font-src') ? '' : "; font-src 'self' https://fonts.gstatic.com");
 
   const body = await renderToReadableStream(
     <NonceProvider>

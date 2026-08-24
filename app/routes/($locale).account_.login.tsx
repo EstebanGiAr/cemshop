@@ -15,3 +15,15 @@ export async function loader({request, context}: Route.LoaderArgs) {
     locale,
   });
 }
+
+export default function Login() {
+  return (
+    <div className="cs-login-redirect">
+      <span className="cs-logo">
+        CEMShop<span className="dot">.</span>
+      </span>
+      <div className="cs-spinner" aria-label="Cargando…" />
+      <p>Accediendo a tu cuenta…</p>
+    </div>
+  );
+}

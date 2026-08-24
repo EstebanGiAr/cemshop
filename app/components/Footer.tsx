@@ -14,116 +14,83 @@ export function Footer({
   publicStoreDomain,
 }: FooterProps) {
   return (
-    <Suspense>
+    <Suspense fallback={<FooterContent links={[]} />}>
       <Await resolve={footerPromise}>
-        {(footer) => (
-          <footer className="footer">
-            {footer?.menu && header.shop.primaryDomain?.url && (
-              <FooterMenu
-                menu={footer.menu}
-                primaryDomainUrl={header.shop.primaryDomain.url}
-                publicStoreDomain={publicStoreDomain}
-              />
-            )}
-          </footer>
-        )}
+        {(footer) => {
+          const items = footer?.menu?.items ?? [];
+          const links = items
+            .filter((item) => !!item.url)
+            .map((item) => {
+              const url =
+                item.url!.includes('myshopify.com') ||
+                item.url!.includes(publicStoreDomain) ||
+                item.url!.includes(header.shop.primaryDomain.url)
+                  ? new URL(item.url!).pathname
+                  : item.url!;
+              return {id: item.id, title: item.title, url};
+            });
+          return <FooterContent links={links} />;
+        }}
       </Await>
     </Suspense>
   );
 }
 
-function FooterMenu({
-  menu,
-  primaryDomainUrl,
-  publicStoreDomain,
-}: {
-  menu: FooterQuery['menu'];
-  primaryDomainUrl: FooterProps['header']['shop']['primaryDomain']['url'];
-  publicStoreDomain: string;
-}) {
+function FooterContent({links}: {links: Array<{id: string; title: string; url: string}>}) {
   return (
-    <nav className="footer-menu" role="navigation">
-      {(menu || FALLBACK_FOOTER_MENU).items.map((item) => {
-        if (!item.url) return null;
-        // if the url is internal, we strip the domain
-        const url =
-          item.url.includes('myshopify.com') ||
-          item.url.includes(publicStoreDomain) ||
-          item.url.includes(primaryDomainUrl)
-            ? new URL(item.url).pathname
-            : item.url;
-        const isExternal = !url.startsWith('/');
-        return isExternal ? (
-          <a href={url} key={item.id} rel="noopener noreferrer" target="_blank">
-            {item.title}
-          </a>
-        ) : (
-          <NavLink
-            end
-            key={item.id}
-            prefetch="intent"
-            style={activeLinkStyle}
-            to={url}
-          >
-            {item.title}
-          </NavLink>
-        );
-      })}
-    </nav>
+    <footer className="cs-footer">
+      <div className="cs-footer-grid">
+        {/* Brand */}
+        <div>
+          <span className="cs-footer-logo">cemshop<span style={{color: 'var(--coral-400)'}}>.</span></span>
+          <p className="cs-footer-desc">
+            Placer íntimo, diseño honesto. Productos de alta calidad para explorar tu sensualidad con confianza y discreción.
+          </p>
+          <div className="cs-footer-social">
+            {['IG', 'TT', 'PT', 'YT'].map((s) => (
+              <span key={s}>{s}</span>
+            ))}
+          </div>
+        </div>
+
+        {/* Tienda */}
+        <div>
+          <h4>Tienda</h4>
+          <NavLink to="/collections/all" prefetch="intent">Novedades</NavLink>
+          <NavLink to="/collections" prefetch="intent">Colecciones</NavLink>
+          <NavLink to="/collections/all" prefetch="intent">Más vendidos</NavLink>
+          <NavLink to="/collections/all" prefetch="intent">Ofertas</NavLink>
+        </div>
+
+        {/* Ayuda */}
+        <div>
+          <h4>Ayuda</h4>
+          <NavLink to="/policies/shipping-policy" prefetch="intent">Envíos</NavLink>
+          <NavLink to="/policies/refund-policy" prefetch="intent">Devoluciones</NavLink>
+          <NavLink to="/policies/privacy-policy" prefetch="intent">Privacidad</NavLink>
+          <NavLink to="/pages/contact" prefetch="intent">Contacto</NavLink>
+        </div>
+
+        {/* Legal */}
+        <div>
+          <h4>Legal</h4>
+          <NavLink to="/policies/terms-of-service" prefetch="intent">Términos</NavLink>
+          <NavLink to="/policies/privacy-policy" prefetch="intent">Cookies</NavLink>
+          {links.map((link) => (
+            <NavLink key={link.id} to={link.url} prefetch="intent">{link.title}</NavLink>
+          ))}
+        </div>
+      </div>
+
+      <div className="cs-footer-bottom">
+        <div>© 2026 CEMShop. Discreto, siempre.</div>
+        <div className="cs-footer-payments">
+          <span>VISA</span>
+          <span>MASTERCARD</span>
+          <span>PAYPAL</span>
+          <span>APPLE PAY</span>
+        </div>
+      </div>
+    </footer>
   );
-}
-
-const FALLBACK_FOOTER_MENU = {
-  id: 'gid://shopify/Menu/199655620664',
-  items: [
-    {
-      id: 'gid://shopify/MenuItem/461633060920',
-      resourceId: 'gid://shopify/ShopPolicy/23358046264',
-      tags: [],
-      title: 'Privacy Policy',
-      type: 'SHOP_POLICY',
-      url: '/policies/privacy-policy',
-      items: [],
-    },
-    {
-      id: 'gid://shopify/MenuItem/461633093688',
-      resourceId: 'gid://shopify/ShopPolicy/23358013496',
-      tags: [],
-      title: 'Refund Policy',
-      type: 'SHOP_POLICY',
-      url: '/policies/refund-policy',
-      items: [],
-    },
-    {
-      id: 'gid://shopify/MenuItem/461633126456',
-      resourceId: 'gid://shopify/ShopPolicy/23358111800',
-      tags: [],
-      title: 'Shipping Policy',
-      type: 'SHOP_POLICY',
-      url: '/policies/shipping-policy',
-      items: [],
-    },
-    {
-      id: 'gid://shopify/MenuItem/461633159224',
-      resourceId: 'gid://shopify/ShopPolicy/23358079032',
-      tags: [],
-      title: 'Terms of Service',
-      type: 'SHOP_POLICY',
-      url: '/policies/terms-of-service',
-      items: [],
-    },
-  ],
-};
-
-function activeLinkStyle({
-  isActive,
-  isPending,
-}: {
-  isActive: boolean;
-  isPending: boolean;
-}) {
-  return {
-    fontWeight: isActive ? 'bold' : undefined,
-    color: isPending ? 'grey' : 'white',
-  };
 }

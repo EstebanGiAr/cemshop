@@ -1,4 +1,5 @@
 import {Analytics, getShopAnalytics, useNonce} from '@shopify/hydrogen';
+import {useEffect} from 'react';
 import {
   Outlet,
   useRouteError,
@@ -9,6 +10,7 @@ import {
   Scripts,
   ScrollRestoration,
   useRouteLoaderData,
+  useLocation,
 } from 'react-router';
 import type {Route} from './+types/root';
 import favicon from '~/assets/favicon.svg';
@@ -54,14 +56,8 @@ export const shouldRevalidate: ShouldRevalidateFunction = ({
  */
 export function links() {
   return [
-    {
-      rel: 'preconnect',
-      href: 'https://cdn.shopify.com',
-    },
-    {
-      rel: 'preconnect',
-      href: 'https://shop.app',
-    },
+    {rel: 'preconnect', href: 'https://cdn.shopify.com'},
+    {rel: 'preconnect', href: 'https://shop.app'},
     {rel: 'icon', type: 'image/svg+xml', href: favicon},
   ];
 }
@@ -146,13 +142,13 @@ export function Layout({children}: {children?: React.ReactNode}) {
   const nonce = useNonce();
 
   return (
-    <html lang="en">
+    <html lang="es">
       <head>
         <meta charSet="utf-8" />
         <meta name="viewport" content="width=device-width,initial-scale=1" />
-        <link rel="stylesheet" href={tailwindCss}></link>
-        <link rel="stylesheet" href={resetStyles}></link>
-        <link rel="stylesheet" href={appStyles}></link>
+        <link rel="stylesheet" href={tailwindCss} />
+        <link rel="stylesheet" href={resetStyles} />
+        <link rel="stylesheet" href={appStyles} />
         <Meta />
         <Links />
       </head>
@@ -165,11 +161,69 @@ export function Layout({children}: {children?: React.ReactNode}) {
   );
 }
 
+function useScrollReveal() {
+  const {pathname} = useLocation();
+  useEffect(() => {
+    const io = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((e) => {
+          if (e.isIntersecting) {
+            e.target.classList.add('in-view');
+            io.unobserve(e.target);
+          }
+        });
+      },
+      {threshold: 0.1, rootMargin: '0px 0px -48px 0px'},
+    );
+
+    const observeNew = (root: Document | Element) => {
+      root
+        .querySelectorAll<Element>('.cs-reveal:not(.in-view)')
+        .forEach((el) => io.observe(el));
+    };
+
+    observeNew(document);
+
+    // Content that mounts after the initial pass (client-only state, or a
+    // hydration-mismatch recovery replacing the DOM) would otherwise never
+    // get observed and stay stuck at opacity 0, so watch for it too.
+    const mo = new MutationObserver((mutations) => {
+      for (const mutation of mutations) {
+        mutation.addedNodes.forEach((node) => {
+          if (!(node instanceof Element)) return;
+          if (node.matches('.cs-reveal:not(.in-view)')) io.observe(node);
+          observeNew(node);
+        });
+      }
+    });
+    mo.observe(document.body, {childList: true, subtree: true});
+
+    return () => {
+      io.disconnect();
+      mo.disconnect();
+    };
+  }, [pathname]);
+}
+
 export default function App() {
   const data = useRouteLoaderData<RootLoader>('root');
+  useScrollReveal();
 
   if (!data) {
     return <Outlet />;
+  }
+
+  // Analytics.Provider contiene ShopifyAnalytics que llama Object.defineProperty
+  // con configurable:false. En mock.shop (desarrollo sin tienda real) esto causa
+  // "Cannot redefine property: Shopify" en React Strict Mode. Se omite en ese caso.
+  const isMockShop = data.publicStoreDomain === 'mock.shop';
+
+  if (isMockShop) {
+    return (
+      <PageLayout {...data}>
+        <Outlet />
+      </PageLayout>
+    );
   }
 
   return (

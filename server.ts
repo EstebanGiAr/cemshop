@@ -1,3 +1,16 @@
+// Workaround: mini-oxygen HMR redefines globalThis.Shopify, causing a crash.
+// Making it configurable before the SDK defines it prevents the error.
+try {
+  const existing = (globalThis as Record<string, unknown>).Shopify;
+  if (existing !== undefined) {
+    Object.defineProperty(globalThis, 'Shopify', {
+      configurable: true,
+      writable: true,
+      value: existing,
+    });
+  }
+} catch (_) {}
+
 import * as serverBuild from 'virtual:react-router/server-build';
 import {createRequestHandler, storefrontRedirect} from '@shopify/hydrogen';
 import {createHydrogenRouterContext} from '~/lib/context';

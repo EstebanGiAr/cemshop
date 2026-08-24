@@ -9,6 +9,7 @@ import {Aside} from '~/components/Aside';
 import {Footer} from '~/components/Footer';
 import {Header, HeaderMenu} from '~/components/Header';
 import {CartMain} from '~/components/CartMain';
+import {WishlistProvider} from '~/lib/wishlist';
 import {
   SEARCH_ENDPOINT,
   SearchFormPredictive,
@@ -33,36 +34,36 @@ export function PageLayout({
   publicStoreDomain,
 }: PageLayoutProps) {
   return (
-    <Aside.Provider>
-      <CartAside cart={cart} />
-      <SearchAside />
-      <MobileMenuAside header={header} publicStoreDomain={publicStoreDomain} />
-      {header && (
-        <Header
+    <WishlistProvider>
+      <Aside.Provider>
+        <CartAside cart={cart} />
+        <SearchAside />
+        <MobileMenuAside header={header} publicStoreDomain={publicStoreDomain} />
+        {header && (
+          <Header
+            header={header}
+            cart={cart}
+            isLoggedIn={isLoggedIn}
+            publicStoreDomain={publicStoreDomain}
+          />
+        )}
+        <main>{children}</main>
+        <Footer
+          footer={footer}
           header={header}
-          cart={cart}
-          isLoggedIn={isLoggedIn}
           publicStoreDomain={publicStoreDomain}
         />
-      )}
-      <main>{children}</main>
-      <Footer
-        footer={footer}
-        header={header}
-        publicStoreDomain={publicStoreDomain}
-      />
-    </Aside.Provider>
+      </Aside.Provider>
+    </WishlistProvider>
   );
 }
 
 function CartAside({cart}: {cart: PageLayoutProps['cart']}) {
   return (
-    <Aside type="cart" heading="CART">
-      <Suspense fallback={<p>Loading cart ...</p>}>
+    <Aside type="cart" heading="Tu bolsa">
+      <Suspense fallback={<div style={{padding: 24, color: 'var(--text-muted)'}}>Cargando bolsa…</div>}>
         <Await resolve={cart}>
-          {(cart) => {
-            return <CartMain cart={cart} layout="aside" />;
-          }}
+          {(cart) => <CartMain cart={cart} layout="aside" />}
         </Await>
       </Suspense>
     </Aside>
@@ -72,9 +73,8 @@ function CartAside({cart}: {cart: PageLayoutProps['cart']}) {
 function SearchAside() {
   const queriesDatalistId = useId();
   return (
-    <Aside type="search" heading="SEARCH">
+    <Aside type="search" heading="Buscar">
       <div className="predictive-search">
-        <br />
         <SearchFormPredictive>
           {({fetchResults, goToSearch, inputRef}) => (
             <>
@@ -82,13 +82,14 @@ function SearchAside() {
                 name="q"
                 onChange={fetchResults}
                 onFocus={fetchResults}
-                placeholder="Search"
+                placeholder="Buscar productos…"
                 ref={inputRef}
                 type="search"
                 list={queriesDatalistId}
               />
-              &nbsp;
-              <button onClick={goToSearch}>Search</button>
+              <button onClick={goToSearch} aria-label="Buscar">
+                <SearchIcon />
+              </button>
             </>
           )}
         </SearchFormPredictive>
@@ -98,7 +99,11 @@ function SearchAside() {
             const {articles, collections, pages, products, queries} = items;
 
             if (state === 'loading' && term.current) {
-              return <div>Loading...</div>;
+              return (
+                <div style={{padding: '20px 0', color: 'var(--text-muted)', fontSize: 13}}>
+                  Buscando…
+                </div>
+              );
             }
 
             if (!total) {
@@ -135,11 +140,10 @@ function SearchAside() {
                   <Link
                     onClick={closeSearch}
                     to={`${SEARCH_ENDPOINT}?q=${term.current}`}
+                    className="cs-btn cs-btn--ghost"
+                    style={{marginTop: 16, width: '100%', justifyContent: 'center'}}
                   >
-                    <p>
-                      View all results for <q>{term.current}</q>
-                      &nbsp; →
-                    </p>
+                    Ver todos los resultados de "{term.current}" →
                   </Link>
                 ) : null}
               </>
@@ -161,7 +165,7 @@ function MobileMenuAside({
   return (
     header.menu &&
     header.shop.primaryDomain?.url && (
-      <Aside type="mobile" heading="MENU">
+      <Aside type="mobile" heading="Menú">
         <HeaderMenu
           menu={header.menu}
           viewport="mobile"
@@ -170,5 +174,13 @@ function MobileMenuAside({
         />
       </Aside>
     )
+  );
+}
+
+function SearchIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" />
+    </svg>
   );
 }

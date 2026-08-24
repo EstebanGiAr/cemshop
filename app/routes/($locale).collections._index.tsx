@@ -46,20 +46,27 @@ export default function Collections() {
   const {collections} = useLoaderData<typeof loader>();
 
   return (
-    <div className="collections">
-      <h1>Collections</h1>
-      <PaginatedResourceSection<CollectionFragment>
-        connection={collections}
-        resourcesClassName="collections-grid"
-      >
-        {({node: collection, index}) => (
-          <CollectionItem
-            key={collection.id}
-            collection={collection}
-            index={index}
-          />
-        )}
-      </PaginatedResourceSection>
+    <div>
+      <section className="cs-section">
+        <div className="cs-section-head">
+          <div className="copy">
+            <span className="cs-eyebrow">Tienda</span>
+            <h1 style={{fontSize: 56}}>Todas las <em style={{fontStyle: 'italic', color: 'var(--coral-600)'}}>colecciones</em></h1>
+          </div>
+        </div>
+        <PaginatedResourceSection<CollectionFragment>
+          connection={collections}
+          resourcesClassName="cs-grid-4"
+        >
+          {({node: collection, index}) => (
+            <CollectionItem
+              key={collection.id}
+              collection={collection}
+              index={index}
+            />
+          )}
+        </PaginatedResourceSection>
+      </section>
     </div>
   );
 }
@@ -71,23 +78,32 @@ function CollectionItem({
   collection: CollectionFragment;
   index: number;
 }) {
+  const bgs = ['var(--cream-200)', 'var(--coral-tint)', 'var(--cream-200)', 'var(--ink-900)'];
+  const bg = bgs[index % bgs.length];
   return (
     <Link
-      className="collection-item"
+      className="cs-cat"
       key={collection.id}
       to={`/collections/${collection.handle}`}
       prefetch="intent"
+      style={{background: bg}}
     >
       {collection?.image && (
-        <Image
-          alt={collection.image.altText || collection.title}
-          aspectRatio="1/1"
-          data={collection.image}
-          loading={index < 3 ? 'eager' : undefined}
-          sizes="(min-width: 45em) 400px, 100vw"
-        />
+        <>
+          <Image
+            alt={collection.image.altText || collection.title}
+            data={collection.image}
+            loading={index < 4 ? 'eager' : undefined}
+            sizes="(min-width: 45em) 25vw, 50vw"
+            className="cs-cat-img"
+          />
+          <div className="cs-cat-overlay" />
+        </>
       )}
-      <h5>{collection.title}</h5>
+      <div className="cs-cat-label">
+        <span>{collection.title}</span>
+        <span className="cs-cat-arrow">↗</span>
+      </div>
     </Link>
   );
 }

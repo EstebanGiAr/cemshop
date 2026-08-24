@@ -6,11 +6,7 @@ import {
 } from 'react-router';
 import type {Route} from './+types/account.orders._index';
 import {useRef} from 'react';
-import {
-  Money,
-  getPaginationVariables,
-  flattenConnection,
-} from '@shopify/hydrogen';
+import {Money, getPaginationVariables, flattenConnection} from '@shopify/hydrogen';
 import {
   buildOrderSearchQuery,
   parseOrderFilters,
@@ -30,7 +26,7 @@ type OrdersLoaderData = {
 };
 
 export const meta: Route.MetaFunction = () => {
-  return [{title: 'Orders'}];
+  return [{title: 'CEMShop | Mis Pedidos'}];
 };
 
 export async function loader({request, context}: Route.LoaderArgs) {
@@ -63,7 +59,11 @@ export default function Orders() {
   const {orders} = customer;
 
   return (
-    <div className="orders">
+    <div>
+      <div className="cs-account-page-header">
+        <span className="cs-eyebrow">Cuenta</span>
+        <h2>Mis pedidos</h2>
+      </div>
       <OrderSearchForm currentFilters={filters} />
       <OrdersTable orders={orders} filters={filters} />
     </div>
@@ -80,11 +80,13 @@ function OrdersTable({
   const hasFilters = !!(filters.name || filters.confirmationNumber);
 
   return (
-    <div className="acccount-orders" aria-live="polite">
+    <div aria-live="polite">
       {orders?.nodes.length ? (
-        <PaginatedResourceSection connection={orders}>
-          {({node: order}) => <OrderItem key={order.id} order={order} />}
-        </PaginatedResourceSection>
+        <div className="cs-orders-list">
+          <PaginatedResourceSection connection={orders}>
+            {({node: order}) => <OrderItem key={order.id} order={order} />}
+          </PaginatedResourceSection>
+        </div>
       ) : (
         <EmptyOrders hasFilters={hasFilters} />
       )}
@@ -94,22 +96,23 @@ function OrdersTable({
 
 function EmptyOrders({hasFilters = false}: {hasFilters?: boolean}) {
   return (
-    <div>
+    <div className="cs-orders-empty">
+      <EmptyBagIcon />
       {hasFilters ? (
         <>
-          <p>No orders found matching your search.</p>
-          <br />
-          <p>
-            <Link to="/account/orders">Clear filters →</Link>
-          </p>
+          <h3>Sin resultados</h3>
+          <p>No encontramos pedidos con ese filtro.</p>
+          <Link to="/account/orders" className="cs-btn cs-btn--ghost">
+            Limpiar filtros
+          </Link>
         </>
       ) : (
         <>
-          <p>You haven&apos;t placed any orders yet.</p>
-          <br />
-          <p>
-            <Link to="/collections">Start Shopping →</Link>
-          </p>
+          <h3>Aún no tienes pedidos</h3>
+          <p>Cuando realices tu primera compra aparecerá aquí.</p>
+          <Link to="/collections" className="cs-btn cs-btn--primary">
+            Explorar productos →
+          </Link>
         </>
       )}
     </div>
@@ -152,34 +155,41 @@ function OrderSearchForm({
     <form
       ref={formRef}
       onSubmit={handleSubmit}
-      className="order-search-form"
-      aria-label="Search orders"
+      className="cs-order-search"
+      aria-label="Filtrar pedidos"
     >
-      <fieldset className="order-search-fieldset">
-        <legend className="order-search-legend">Filter Orders</legend>
-
-        <div className="order-search-inputs">
+      <div className="cs-order-search-title">Buscar pedido</div>
+      <div className="cs-order-search-inputs">
+        <div className="cs-field">
+          <label htmlFor="order-name">Número de pedido</label>
           <input
+            id="order-name"
             type="search"
             name={ORDER_FILTER_FIELDS.NAME}
-            placeholder="Order #"
-            aria-label="Order number"
+            placeholder="ej: 1001"
+            aria-label="Número de pedido"
             defaultValue={currentFilters.name || ''}
-            className="order-search-input"
-          />
-          <input
-            type="search"
-            name={ORDER_FILTER_FIELDS.CONFIRMATION_NUMBER}
-            placeholder="Confirmation #"
-            aria-label="Confirmation number"
-            defaultValue={currentFilters.confirmationNumber || ''}
-            className="order-search-input"
           />
         </div>
-
-        <div className="order-search-buttons">
-          <button type="submit" disabled={isSearching}>
-            {isSearching ? 'Searching' : 'Search'}
+        <div className="cs-field">
+          <label htmlFor="order-confirmation">Confirmación</label>
+          <input
+            id="order-confirmation"
+            type="search"
+            name={ORDER_FILTER_FIELDS.CONFIRMATION_NUMBER}
+            placeholder="ej: ABC123"
+            aria-label="Número de confirmación"
+            defaultValue={currentFilters.confirmationNumber || ''}
+          />
+        </div>
+        <div style={{display: 'flex', gap: 10, alignItems: 'flex-end', paddingBottom: 0}}>
+          <button
+            type="submit"
+            disabled={isSearching}
+            className="cs-btn cs-btn--primary"
+            style={{height: 46}}
+          >
+            {isSearching ? 'Buscando…' : 'Buscar'}
           </button>
           {hasFilters && (
             <button
@@ -189,34 +199,73 @@ function OrderSearchForm({
                 setSearchParams(new URLSearchParams());
                 formRef.current?.reset();
               }}
+              className="cs-btn cs-btn--ghost"
+              style={{height: 46}}
             >
-              Clear
+              Limpiar
             </button>
           )}
         </div>
-      </fieldset>
+      </div>
     </form>
   );
 }
 
 function OrderItem({order}: {order: OrderItemFragment}) {
   const fulfillmentStatus = flattenConnection(order.fulfillments)[0]?.status;
+
   return (
-    <>
-      <fieldset>
-        <Link to={`/account/orders/${btoa(order.id)}`}>
-          <strong>#{order.number}</strong>
-        </Link>
-        <p>{new Date(order.processedAt).toDateString()}</p>
+    <Link
+      to={`/account/orders/${btoa(order.id)}`}
+      className="cs-order-card"
+    >
+      <div>
+        <div className="cs-order-number">Pedido #{order.number}</div>
+        <div className="cs-order-date">
+          {new Date(order.processedAt).toLocaleDateString('es-ES', {
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric',
+          })}
+        </div>
         {order.confirmationNumber && (
-          <p>Confirmation: {order.confirmationNumber}</p>
+          <div className="cs-order-confirmation">
+            Confirmación: {order.confirmationNumber}
+          </div>
         )}
-        <p>{order.financialStatus}</p>
-        {fulfillmentStatus && <p>{fulfillmentStatus}</p>}
-        <Money data={order.totalPrice} />
-        <Link to={`/account/orders/${btoa(order.id)}`}>View Order →</Link>
-      </fieldset>
-      <br />
-    </>
+        <div className="cs-order-status">
+          {order.financialStatus && (
+            <span className="cs-tag-soft">{order.financialStatus}</span>
+          )}
+          {fulfillmentStatus && (
+            <span className="cs-tag-soft">{fulfillmentStatus}</span>
+          )}
+        </div>
+      </div>
+      <div className="cs-order-total">
+        <div className="cs-order-total-amount">
+          <Money data={order.totalPrice} />
+        </div>
+        <span className="cs-order-view-link">Ver pedido →</span>
+      </div>
+    </Link>
+  );
+}
+
+function EmptyBagIcon() {
+  return (
+    <svg
+      width="56"
+      height="56"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="var(--border)"
+      strokeWidth="0.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      style={{marginBottom: 8}}
+    >
+      <path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2M9 5a2 2 0 0 0 2 2h2a2 2 0 0 0 2-2M9 5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2" />
+    </svg>
   );
 }

@@ -1,4 +1,4 @@
-import {redirect, useLoaderData} from 'react-router';
+import {redirect, useLoaderData, Link} from 'react-router';
 import type {Route} from './+types/collections.$handle';
 import {getPaginationVariables, Analytics} from '@shopify/hydrogen';
 import {PaginatedResourceSection} from '~/components/PaginatedResourceSection';
@@ -7,83 +7,96 @@ import {ProductItem} from '~/components/ProductItem';
 import type {ProductItemFragment} from 'storefrontapi.generated';
 
 export const meta: Route.MetaFunction = ({data}) => {
-  return [{title: `Hydrogen | ${data?.collection.title ?? ''} Collection`}];
+  return [{title: `CEMShop | ${data?.collection.title ?? ''}`}];
 };
 
 export async function loader(args: Route.LoaderArgs) {
-  // Start fetching non-critical data without blocking time to first byte
   const deferredData = loadDeferredData(args);
-
-  // Await the critical data required to render initial state of the page
   const criticalData = await loadCriticalData(args);
-
   return {...deferredData, ...criticalData};
 }
 
-/**
- * Load data necessary for rendering content above the fold. This is the critical data
- * needed to render the page. If it's unavailable, the whole page should 400 or 500 error.
- */
 async function loadCriticalData({context, params, request}: Route.LoaderArgs) {
   const {handle} = params;
   const {storefront} = context;
-  const paginationVariables = getPaginationVariables(request, {
-    pageBy: 8,
-  });
+  const paginationVariables = getPaginationVariables(request, {pageBy: 9});
 
-  if (!handle) {
-    throw redirect('/collections');
-  }
+  if (!handle) throw redirect('/collections');
 
   const [{collection}] = await Promise.all([
     storefront.query(COLLECTION_QUERY, {
       variables: {handle, ...paginationVariables},
-      // Add other queries here, so that they are loaded in parallel
     }),
   ]);
 
   if (!collection) {
-    throw new Response(`Collection ${handle} not found`, {
-      status: 404,
-    });
+    throw new Response(`Collection ${handle} not found`, {status: 404});
   }
 
-  // The API handle might be localized, so redirect to the localized handle
   redirectIfHandleIsLocalized(request, {handle, data: collection});
-
-  return {
-    collection,
-  };
+  return {collection};
 }
 
-/**
- * Load data for rendering content below the fold. This data is deferred and will be
- * fetched after the initial page load. If it's unavailable, the page should still 200.
- * Make sure to not throw any errors here, as it will cause the page to 500.
- */
 function loadDeferredData({context}: Route.LoaderArgs) {
   return {};
 }
 
 export default function Collection() {
   const {collection} = useLoaderData<typeof loader>();
+  const productCount = collection.products.nodes.length;
 
   return (
-    <div className="collection">
-      <h1>{collection.title}</h1>
-      <p className="collection-description">{collection.description}</p>
-      <PaginatedResourceSection<ProductItemFragment>
-        connection={collection.products}
-        resourcesClassName="products-grid"
-      >
-        {({node: product, index}) => (
-          <ProductItem
-            key={product.id}
-            product={product}
-            loading={index < 8 ? 'eager' : undefined}
-          />
-        )}
-      </PaginatedResourceSection>
+    <div>
+      {/* Page hero */}
+      <section className="cs-catalog-hero">
+        <div className="cs-crumbs">
+          <Link to="/">Inicio</Link>
+          <span className="sep">/</span>
+          <Link to="/collections">Colecciones</Link>
+          <span className="sep">/</span>
+          <span className="current">{collection.title}</span>
+        </div>
+
+        <div className="cs-catalog-meta cs-reveal">
+          <div>
+            <h1 className="cs-catalog-title">
+              {collection.title.split(' ').length > 1 ? (
+                <>
+                  {collection.title.split(' ').slice(0, -1).join(' ')}{' '}
+                  <em>{collection.title.split(' ').slice(-1)[0]}</em>
+                </>
+              ) : (
+                <em>{collection.title}</em>
+              )}
+            </h1>
+            {collection.description && (
+              <p className="collection-description">{collection.description}</p>
+            )}
+          </div>
+          <div style={{display: 'flex', alignItems: 'center', gap: 12, flexShrink: 0}}>
+            <span style={{fontSize: 13, color: 'var(--text-muted)'}}>
+              {productCount} {productCount === 1 ? 'producto' : 'productos'}
+            </span>
+          </div>
+        </div>
+      </section>
+
+      {/* Product grid */}
+      <section className="cs-section" style={{paddingTop: 28}}>
+        <PaginatedResourceSection<ProductItemFragment>
+          connection={collection.products}
+          resourcesClassName="products-grid"
+        >
+          {({node: product, index}) => (
+            <ProductItem
+              key={product.id}
+              product={product}
+              loading={index < 9 ? 'eager' : undefined}
+            />
+          )}
+        </PaginatedResourceSection>
+      </section>
+
       <Analytics.CollectionView
         data={{
           collection: {
@@ -105,6 +118,7 @@ const PRODUCT_ITEM_FRAGMENT = `#graphql
     id
     handle
     title
+    vendor
     featuredImage {
       id
       altText
@@ -120,10 +134,40 @@ const PRODUCT_ITEM_FRAGMENT = `#graphql
         ...MoneyProductItem
       }
     }
+    selectedOrFirstAvailableVariant(
+      selectedOptions: []
+      ignoreUnknownOptions: true
+      caseInsensitiveMatch: true
+    ) {
+      id
+      availableForSale
+      title
+      price {
+        ...MoneyProductItem
+      }
+      compareAtPrice {
+        ...MoneyProductItem
+      }
+      image {
+        id
+        url
+        altText
+        width
+        height
+      }
+      selectedOptions {
+        name
+        value
+      }
+      product {
+        handle
+        title
+        vendor
+      }
+    }
   }
 ` as const;
 
-// NOTE: https://shopify.dev/docs/api/storefront/2022-04/objects/collection
 const COLLECTION_QUERY = `#graphql
   ${PRODUCT_ITEM_FRAGMENT}
   query Collection(

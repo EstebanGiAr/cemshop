@@ -26,10 +26,10 @@ export function PaginatedResourceSection<NodesType>({
           <div>
             <PreviousLink>
               {isLoading ? (
-                'Loading...'
+                <span className="cs-btn cs-btn--ghost" style={{display: 'inline-flex', marginBottom: 24}}>Cargando…</span>
               ) : (
-                <span>
-                  <span aria-hidden="true">↑</span> Load previous
+                <span className="cs-btn cs-btn--ghost" style={{display: 'inline-flex', marginBottom: 24}}>
+                  ↑ Cargar anteriores
                 </span>
               )}
             </PreviousLink>
@@ -46,10 +46,10 @@ export function PaginatedResourceSection<NodesType>({
             )}
             <NextLink>
               {isLoading ? (
-                'Loading...'
+                <span className="cs-btn cs-btn--ghost" style={{display: 'inline-flex', marginTop: 36}}>Cargando…</span>
               ) : (
-                <span>
-                  Load more <span aria-hidden="true">↓</span>
+                <span className="cs-btn cs-btn--ghost" style={{display: 'inline-flex', marginTop: 36}}>
+                  Cargar más ↓
                 </span>
               )}
             </NextLink>
